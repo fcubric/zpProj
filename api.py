@@ -1,23 +1,37 @@
 # API for zp proj
 
-def generate_new_keypair():
-    pass
+def generate_new_keypair(name, password, email, size, algorithm):
+    '''
+
+    :param name: name of user
+    :param password: password of user
+    :param email: email of user
+    :param size: chosen keysize
+    :param algorithm: chosen algorithm (possible values: 'RSA', 'DSA')
+    :return: message saying the operation was successful or error message
+    '''
+    return ""
 
 
-def delete_keypair():
-    pass
+def delete_keypair(keys):
+    '''
 
-def import_key():
-    pass
+    :param keys: not sure what this is yet
+    :return:
+    '''
+    return ""
 
-def export_key():
-    pass
+def import_key(filename, path, password, req):
+    return ""
 
-def show_ring():
-    pass
+def export_key(filename, path, password, req):
+    return ""
 
-def send_message(msg):
-    pass
+def show_ring(pw):
+    return ""
 
-def receive_message():
-    pass
+def send_message(filename, path, enc, sign, compress, radix):
+    return ""
+
+def receive_message(filename_from,path_from,filename_to,path_to,errors):
+    return ""
