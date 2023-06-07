@@ -1,5 +1,5 @@
 # API for zp proj
-
+from models import *
 def generate_new_keypair(name, password, email, size, algorithm):
     '''
 
@@ -10,6 +10,8 @@ def generate_new_keypair(name, password, email, size, algorithm):
     :param algorithm: chosen algorithm (possible values: 'RSA', 'DSA')
     :return: message saying the operation was successful or error message
     '''
+    keyring=KeyRingPrivate(email,name,password,size,algorithm)
+    print("halo")
     return ""
 
 
