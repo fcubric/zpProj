@@ -88,8 +88,9 @@ class PGP_GUI(QMainWindow):
     def send_wrapper(self):
         filename = str(self.send_filename.text())
         path = str(self.send_path.text())
-        if filename=='' or path=='':
-            self.send_err.setText("You must enter file name and path")
+        message=str(self.message.toPlainText())
+        if filename=='' or path=='' or message=='':
+            self.send_err.setText("You must enter file name, path and message")
             return
         enc={}
         sign={}
@@ -115,7 +116,7 @@ class PGP_GUI(QMainWindow):
                 "alg":alg,
                 "key":key
             }
-        msg=send_message(filename,path,enc,sign,compress,radix)
+        msg=send_message(filename,path,enc,sign,compress,radix,message)
         self.send_err.setText(msg)
 
     def receive_wrapper(self):
