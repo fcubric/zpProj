@@ -5,6 +5,9 @@ from PyQt5.QtGui import QStandardItem, QStandardItemModel
 from PyQt5.QtWidgets import *
 from api import *
 from PyQt5 import uic
+import models
+from models import Users_Set, user_logged
+
 
 class PGP_GUI(QMainWindow):
     def __init__(self):
@@ -45,10 +48,21 @@ class PGP_GUI(QMainWindow):
         self.check_enc.stateChanged.connect(self.toggle_enc)
         self.check_sign.stateChanged.connect(self.toggle_sign)
 
+        self.login_button.clicked.connect(self.login)
+        self.logout_button.clicked.connect(self.logout)
+        self.reg_button.clicked.connect(self.register)
+
+
     def generate_new_keypair_wrapper(self):
-        name=str(self.gen_name.text())
-        email=str(self.gen_email.text())
-        password=str(self.gen_pw.text())
+
+        if models.user_logged==None:
+            self.gen_err.setText("You have to log in")
+            return
+
+        name=models.user_logged.name
+        password=models.user_logged.password
+        email=models.user_logged.email
+
         key_size=int(self.gen_key_size_radio.checkedButton().text())
         alg=str(self.gen_key_alg_radio.checkedButton().text())
 
@@ -60,6 +74,11 @@ class PGP_GUI(QMainWindow):
         self.gen_err.setText(msg)
 
     def import_key_wrapper(self,req):
+
+        if models.user_logged == None:
+            self.import_err.setText("You have to log in")
+            return
+
         filename = str(self.import_filename.text())
         path = str(self.import_path.text())
         password = str(self.import_pw.text())
@@ -73,6 +92,11 @@ class PGP_GUI(QMainWindow):
         self.import_err.setText(msg)
 
     def export_key_wrapper(self,req):
+
+        if models.user_logged == None:
+            self.export_err.setText("You have to log in")
+            return
+
         filename = str(self.export_filename.text())
         path = str(self.export_path.text())
         password = str(self.export_pw.text())
@@ -86,6 +110,11 @@ class PGP_GUI(QMainWindow):
         self.export_err.setText(msg)
 
     def send_wrapper(self):
+
+        if models.user_logged == None:
+            self.send_err.setText("You have to log in")
+            return
+
         filename = str(self.send_filename.text())
         path = str(self.send_path.text())
         message=str(self.message.toPlainText())
@@ -120,6 +149,10 @@ class PGP_GUI(QMainWindow):
         self.send_err.setText(msg)
 
     def receive_wrapper(self):
+        if models.user_logged == None:
+            self.dec_err.setText("You have to log in")
+            return
+
         filename_from = str(self.dec_file1.text())
         path_from = str(self.dec_path1.text())
         filename_to = str(self.dec_file2.text())
@@ -134,6 +167,10 @@ class PGP_GUI(QMainWindow):
         self.dec_verify.setText(auth[1])
 
     def show_ring_wrapper(self):
+        if models.user_logged == None:
+            self.keys_err.setText("You have to log in")
+            return
+
         password=str(self.pk_pw.text())
         if password=='':
             self.keys_err.setText("You have to input password")
@@ -142,6 +179,10 @@ class PGP_GUI(QMainWindow):
         self.keys_err.setText(msg)
 
     def delete_wrapper(self):
+        if models.user_logged == None:
+            self.keys_err_2.setText("You have to log in")
+            return
+
         rows1=self.private_keys.selectionModel()
         role=Qt.DisplayRole
         if rows1:
@@ -191,6 +232,39 @@ class PGP_GUI(QMainWindow):
             self.model1.appendRow(row)
         self.public_keys.setModel(self.model1)
 
+    def login(self):
+        if models.user_logged!=None:
+            self.log_err.setText("You have to log out first")
+            return
+        email = str(self.log_email.text())
+        password = str(self.log_pw.text())
+        if email=="" or password=="":
+            self.log_err.setText("You have to input email and password")
+            return
+        msg=Users_Set.login(email,password)
+        self.log_err.setText(msg)
+
+    def logout(self):
+        if models.user_logged==None:
+            self.log_err.setText("You are not logged in")
+            return
+        msg=Users_Set.logout()
+        self.log_err.setText(msg)
+
+    def register(self):
+        if models.user_logged!=None:
+            self.reg_err.setText("You have to log out first")
+            return
+        name = str(self.reg_name.text())
+        email = str(self.reg_email.text())
+        password = str(self.reg_pw.text())
+
+        if email=="" or password=="" or name=="":
+            self.reg_err.setText("You have to input name, email and password")
+            return
+
+        msg=Users_Set.register(name,email,password)
+        self.reg_err.setText(msg)
 
 def main():
     app=QApplication([])
@@ -198,4 +272,5 @@ def main():
     app.exec_()
 
 if __name__=="__main__":
+
     main()

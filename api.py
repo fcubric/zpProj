@@ -1,5 +1,9 @@
 # API for zp proj
+import models
 from models import *
+
+
+
 def generate_new_keypair(name, password, email, size, algorithm):
     '''
 
@@ -10,8 +14,17 @@ def generate_new_keypair(name, password, email, size, algorithm):
     :param algorithm: chosen algorithm (possible values: 'RSA', 'DSA')
     :return:  descriptive message / error
     '''
-    keyring=KeyRingPrivate(email,name,password,size,algorithm)
-    print("halo")
+    keyring_enc=None
+    keyring_sig=None
+    if algorithm=="DSA":
+        keyring_sig = KeyRing(email, name, password, size, algorithm)
+        keyring_enc = KeyRing(email, name, password, size, "ELG")
+    else:
+        keyring_sig=KeyRing(email,name,password,size,algorithm)
+        keyring_enc=KeyRing(email,name,password,size,algorithm)
+
+    models.user_logged.my_keys[keyring_enc.keyId]=keyring_enc
+    models.user_logged.my_keys[keyring_sig.keyId]=keyring_sig
     return ""
 
 def delete_keypair(keys):
