@@ -1,5 +1,6 @@
 import sys
 
+import PyQt5
 from PyQt5.QtCore import QModelIndex, Qt
 from PyQt5.QtGui import QStandardItem, QStandardItemModel
 from PyQt5.QtWidgets import *
@@ -29,14 +30,15 @@ class PGP_GUI(QMainWindow):
         self.dec_button.clicked.connect(self.receive_wrapper)
 
         self.model1 = QStandardItemModel()
-        self.model1.setColumnCount(3)
-        headerNames = ["Last Name","First Name","Description"]
-        self.model1.setHorizontalHeaderLabels(headerNames)
+        self.model1.setColumnCount(5)
+        headerNames1 = ["Key id","User","Public key","Private key (enc)","Timestamp"]
+        self.model1.setHorizontalHeaderLabels(headerNames1)
         self.public_keys.setModel(self.model1)
 
         self.model2 = QStandardItemModel()
-        self.model2.setColumnCount(3)
-        self.model2.setHorizontalHeaderLabels(headerNames)
+        self.model1.setColumnCount(4)
+        headerNames2 = ["Key id","User","Public key","Timestamp"]
+        self.model2.setHorizontalHeaderLabels(headerNames2)
         self.public_keys.setModel(self.model2)
 
         stylesheet = "::section{Background-color:rgb(0,0,0); color: rgb(0, 255, 93)}"
@@ -51,7 +53,6 @@ class PGP_GUI(QMainWindow):
         self.login_button.clicked.connect(self.login)
         self.logout_button.clicked.connect(self.logout)
         self.reg_button.clicked.connect(self.register)
-
 
     def generate_new_keypair_wrapper(self):
 
@@ -72,6 +73,8 @@ class PGP_GUI(QMainWindow):
 
         msg=generate_new_keypair(name,password,email,key_size,alg[:3])
         self.gen_err.setText(msg)
+        self.hide_keys()
+        self.show_keys()
 
     def import_key_wrapper(self,req):
 
@@ -90,6 +93,9 @@ class PGP_GUI(QMainWindow):
             return
         msg = import_key(filename,path,password,req)
         self.import_err.setText(msg)
+
+        self.hide_keys()
+        self.show_keys()
 
     def export_key_wrapper(self,req):
 
@@ -175,8 +181,24 @@ class PGP_GUI(QMainWindow):
         if password=='':
             self.keys_err.setText("You have to input password")
             return
-        msg=show_ring(password)
-        self.keys_err.setText(msg)
+        rows = self.private_keys.selectionModel().selectedRows()
+        keyid=0
+        if rows:
+            model = self.private_keys.model()
+            for kp in rows:
+                keyid=model.data(kp)
+                break
+        else:
+            self.keys_err.setText("You have to select row with the key you want to see")
+            return
+
+        if self.check_pw(password,int(keyid)):
+            self.hide_keys()
+            self.show_keys(int(keyid))
+            self.keys_err.setText("Success")
+        else:
+            self.keys_err.setText("Wrong password")
+        self.keys_err_2.setText("")
 
     def delete_wrapper(self):
         if models.user_logged == None:
@@ -184,23 +206,30 @@ class PGP_GUI(QMainWindow):
             return
 
         rows1=self.private_keys.selectionModel()
-        role=Qt.DisplayRole
         if rows1:
             model=self.private_keys.model()
-            i=0
             for kp in rows1.selectedRows():
-                i+=1
-                # exact values will be changed later
-                # if i%10==3: delete_keypair(model.data(kp));
+                password=str(self.pk_pw.text())
+                if password!="" and self.check_pw(password,int(kp.data())):
+                    delete_keypair(int(kp.data()),0)
+                elif password=="":
+                    self.keys_err_2.setText("You have to input password")
+                    return
+                else:
+                    self.keys_err_2.setText("Wrong password")
+                    return
+
 
         rows2=self.public_keys.selectionModel()
         if rows2:
             model=self.public_keys.model()
-            i=0
-            for kp in rows2.selectedIndexes():
-                i+=1
-                # exact values will be changed later
-                # if i%10==3: delete_keypair(model.data(kp));
+            for kp in rows2.selectedRows():
+                delete_keypair(int(kp.data()),1)
+
+        self.hide_keys()
+        self.show_keys()
+        self.keys_err_2.setText("Success")
+        self.keys_err.setText("")
 
     def toggle_enc(self):
         if self.enc_alg1.isEnabled():
@@ -222,16 +251,6 @@ class PGP_GUI(QMainWindow):
             self.sign_alg2.setEnabled(True)
             self.send_private_key.setEnabled(True)
 
-    def public_key_table(self,contents):
-        for obj in contents:
-            row = []
-            for field in obj:
-                item = QStandardItem(field)
-                item.setEditable(False)
-                row.append(item)
-            self.model1.appendRow(row)
-        self.public_keys.setModel(self.model1)
-
     def login(self):
         if models.user_logged!=None:
             self.log_err.setText("You have to log out first")
@@ -243,6 +262,8 @@ class PGP_GUI(QMainWindow):
             return
         msg=Users_Set.login(email,password)
         self.log_err.setText(msg)
+        if models.user_logged!=None:
+            self.show_keys()
 
     def logout(self):
         if models.user_logged==None:
@@ -250,6 +271,8 @@ class PGP_GUI(QMainWindow):
             return
         msg=Users_Set.logout()
         self.log_err.setText(msg)
+        if models.user_logged==None:
+            self.hide_keys()
 
     def register(self):
         if models.user_logged!=None:
@@ -265,6 +288,57 @@ class PGP_GUI(QMainWindow):
 
         msg=Users_Set.register(name,email,password)
         self.reg_err.setText(msg)
+        if models.user_logged!=None:
+            self.show_keys()
+
+    def check_pw(self,password, k):
+        return sha1(password.encode()).digest()==models.user_logged.my_keys[k].password
+
+    def show_keys(self,showkey=0):
+        for id in models.user_logged.my_keys.keys():
+            row = []
+
+            keyid=models.user_logged.my_keys[id].keyId
+            priv_key = str(models.user_logged.my_keys[id].private_key)
+            priv_key = priv_key[41:-40]
+            priv_key.replace('\\n', '')
+            show= keyid==showkey
+
+            pub_key=models.user_logged.my_keys[id].public_key.public_numbers().n
+            self.add_field_to_row(row,keyid,show)
+            self.add_field_to_row(row,models.user_logged.my_keys[id].user_id,show)
+            self.add_field_to_row(row,pub_key,show)
+            self.add_field_to_row(row,priv_key,show)
+            self.add_field_to_row(row,models.user_logged.my_keys[id].timestamp,show)
+            self.model1.appendRow(row)
+        self.private_keys.setModel(self.model1)
+        for id in models.user_logged.other_keys.keys():
+            row = []
+            self.add_field_to_row(row,models.user_logged.other_keys[id].keyId)
+            self.add_field_to_row(row,models.user_logged.other_keys[id].user_id)
+            self.add_field_to_row(row,models.user_logged.other_keys[id].public_key)
+            self.add_field_to_row(row,models.user_logged.other_keys[id].timestamp)
+            self.model2.appendRow(row)
+        self.public_keys.setModel(self.model2)
+
+    def hide_keys(self):
+        self.model1 = QStandardItemModel()
+        self.model1.setColumnCount(5)
+        headerNames1 = ["Key id", "User", "Public key", "Private key (enc)", "Timestamp"]
+        self.model1.setHorizontalHeaderLabels(headerNames1)
+        self.public_keys.setModel(self.model1)
+
+        self.model2 = QStandardItemModel()
+        self.model1.setColumnCount(4)
+        headerNames2 = ["Key id", "User", "Public key", "Timestamp"]
+        self.model2.setHorizontalHeaderLabels(headerNames2)
+        self.public_keys.setModel(self.model2)
+
+    def add_field_to_row(self,row, field,show=True):
+        item = QStandardItem(str(field))
+        item.setEditable(False)
+        item.setEnabled(show)
+        row.append(item)
 
 def main():
     app=QApplication([])

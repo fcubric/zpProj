@@ -27,7 +27,7 @@
      </rect>
     </property>
     <property name="currentIndex">
-     <number>4</number>
+     <number>3</number>
     </property>
     <widget class="QWidget" name="tab_7">
      <attribute name="title">
@@ -437,14 +437,14 @@ background-color: rgb(0, 255, 93)</string>
      </attribute>
      <widget class="QTableView" name="private_keys">
       <property name="enabled">
-       <bool>false</bool>
+       <bool>true</bool>
       </property>
       <property name="geometry">
        <rect>
         <x>20</x>
         <y>180</y>
         <width>541</width>
-        <height>81</height>
+        <height>151</height>
        </rect>
       </property>
       <property name="styleSheet">
@@ -519,9 +519,9 @@ background-color: rgb(0, 255, 93)</string>
       <property name="geometry">
        <rect>
         <x>20</x>
-        <y>320</y>
+        <y>410</y>
         <width>541</width>
-        <height>131</height>
+        <height>151</height>
        </rect>
       </property>
       <property name="styleSheet">
@@ -532,7 +532,7 @@ background-color: rgb(0, 255, 93)</string>
       <property name="geometry">
        <rect>
         <x>250</x>
-        <y>280</y>
+        <y>370</y>
         <width>91</width>
         <height>16</height>
        </rect>
@@ -564,7 +564,7 @@ background-color: rgb(0, 255, 93)</string>
       <property name="geometry">
        <rect>
         <x>200</x>
-        <y>480</y>
+        <y>590</y>
         <width>191</width>
         <height>28</height>
        </rect>
@@ -580,7 +580,7 @@ background-color: rgb(0, 255, 93)</string>
       <property name="geometry">
        <rect>
         <x>200</x>
-        <y>530</y>
+        <y>640</y>
         <width>331</width>
         <height>20</height>
        </rect>
@@ -1527,7 +1527,7 @@ background-color: rgb(0, 255, 93)</string>
  <buttongroups>
   <buttongroup name="send_enc_radio"/>
   <buttongroup name="send_sign_radio"/>
-  <buttongroup name="gen_key_size_radio"/>
   <buttongroup name="gen_key_alg_radio"/>
+  <buttongroup name="gen_key_size_radio"/>
  </buttongroups>
 </ui>

@@ -27,13 +27,19 @@ def generate_new_keypair(name, password, email, size, algorithm):
     models.user_logged.my_keys[keyring_sig.keyId]=keyring_sig
     return ""
 
-def delete_keypair(keys):
+
+
+def delete_keypair(keys,which):
     '''
 
     :param keys: id of key pair in the structure to be deleted
     :return: descriptive message / error
     '''
-    return ""
+    if which==0:
+        models.user_logged.my_keys.pop(keys)
+    else:
+        models.user_logged.other_keys.pop(keys)
+    return "Key deleted successfully"
 
 def import_key(filename, path, password, req):
     '''
@@ -57,10 +63,11 @@ def export_key(filename, path, password, req):
     '''
     return ""
 
-def show_ring(pw):
+def show_ring(pw, keyId):
     '''
 
     :param pw: password for showing a private key pair
+    :param keyId: key pair id
     :return: descriptive message / error
     '''
     return ""

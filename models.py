@@ -110,7 +110,6 @@ class User:
         self.name=name
         self.email=email
         self.password=sha1(password.encode()).digest()
-        print(self.password)
         self.my_keys=dict()
         self.other_keys=dict()
 
