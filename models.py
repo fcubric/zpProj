@@ -2,12 +2,12 @@ import hashlib
 
 from datetime import datetime
 
-from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 import os
 
-
+from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.ciphers import algorithms, modes, Cipher
@@ -62,30 +62,55 @@ class KeyRing:
 
     def hash_private_key(self):
 
-        initial_vector = os.urandom(16)
-        cipher = Cipher(algorithms.AES128(self.password), mode=modes.CBC(initial_vector))
-        encryptor = cipher.encryptor()
+
+
+        # ciphertext = self.public_key.encrypt(
+        #     b"test poruka",
+        #     padding.OAEP(
+        #         mgf=padding.MGF1(algorithm=hashes.SHA256()),
+        #         algorithm=hashes.SHA256(),
+        #         label=None
+        #     )
+        # )
 
         private_key_bytes = self.private_key.private_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PrivateFormat.PKCS8,
-            encryption_algorithm=serialization.NoEncryption()
+            encryption_algorithm=serialization.BestAvailableEncryption(self.password)
         )
-        print("PRIVATNI KLJUC\n", self.private_key, "\nPRIVATNI KLJUC BYTES\n", private_key_bytes)
 
-        self.private_key = encryptor.update(private_key_bytes) + encryptor.finalize()
+        self.private_key = private_key_bytes
 
 
-        decryptor = cipher.decryptor()
-        private_key_bytes2 = decryptor.update(self.private_key) + decryptor.finalize()
-        print("PRIVATNI KLJUC\n", self.private_key, "\nPRIVATNI KLJUC BYTES\n", private_key_bytes)
+        #print("\nPRIVATNI KLJUC BYTES\n", private_key_bytes)
+
+        # private = serialization.load_pem_private_key(self.private_key,password=self.password)
+        #
+        # plaintext = private.decrypt(
+        #     ciphertext,
+        #     padding.OAEP(
+        #         mgf=padding.MGF1(algorithm=hashes.SHA256()),
+        #         algorithm=hashes.SHA256(),
+        #         label=None
+        #     )
+        # )
+        #
+        # print(plaintext)
+
+        #self.private_key = encryptor.update(private_key_bytes) + encryptor.finalize()
+
+
+        #decryptor = cipher.decryptor()
+        #private_key_bytes2 = decryptor.update(self.private_key) + decryptor.finalize()
+        #print("\nPRIVATNI KLJUC BYTES\n", private_key_bytes)
 
 
 class User:
     def __init__(self, name, email, password):
         self.name=name
         self.email=email
-        self.password=shake_128(sha1(password.encode()).digest()).digest(16)
+        self.password=sha1(password.encode()).digest()
+        print(self.password)
         self.my_keys=dict()
         self.other_keys=dict()
 
@@ -100,7 +125,7 @@ class Users_Set:
     @staticmethod
     def login( email, pw):
         global user_logged
-        pw=shake_128(sha1(pw.encode()).digest()).digest(16)
+        pw=sha1(pw.encode()).digest()
         if not Users_Set.users.keys().__contains__(email):
             return "User doesnt exist"
         if Users_Set.users[email].password==pw:
