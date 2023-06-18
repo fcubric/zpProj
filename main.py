@@ -55,7 +55,6 @@ class PGP_GUI(QMainWindow):
         self.reg_button.clicked.connect(self.register)
 
     def generate_new_keypair_wrapper(self):
-
         if models.user_logged==None:
             self.gen_err.setText("You have to log in")
             return
@@ -88,8 +87,8 @@ class PGP_GUI(QMainWindow):
         if req and password=='':
             self.import_err.setText("Password is required for private import")
             return
-        if filename=='' or path=='':
-            self.import_err.setText("You have to input file name and path")
+        if filename=='':
+            self.import_err.setText("You have to input file name")
             return
         msg = import_key(filename,path,password,req)
         self.import_err.setText(msg)
@@ -110,12 +109,12 @@ class PGP_GUI(QMainWindow):
         if req and password=='':
             self.export_err.setText("Password is required for private export")
             return
-        if filename=='' or path=='' or keyid=='':
-            self.export_err.setText("You have to input file name, path and key id")
+        if filename=='' or keyid=='':
+            self.export_err.setText("You have to input file name and key id")
             return
         try:
             if (req and self.check_pw(password,int(keyid))) or not req:
-                msg = export_key(filename,path,keyid)
+                msg = export_key(filename,path,keyid,req)
                 self.export_err.setText(msg)
             elif req:
                 self.export_err.setText("Wrong password")
@@ -306,23 +305,8 @@ class PGP_GUI(QMainWindow):
             row = []
 
             keyid=models.user_logged.my_keys[id].keyId
-            priv_key = str(models.user_logged.my_keys[id].private_key)
-            pub_key=0
-
-            if models.user_logged.my_keys[id].algorithm=="ELG":
-                priv_key = priv_key[92:-25]
-                pub_key="p= "+str(models.user_logged.my_keys[id].public_key.p)+", "+ \
-                        "g= "+str(models.user_logged.my_keys[id].public_key.g) + ", " + \
-                        "y= "+str(models.user_logged.my_keys[id].public_key.y) + ", "
-            else:
-                priv_key = priv_key[41:-40]
-                priv_key.replace('\\n', '')
-                if models.user_logged.my_keys[id].algorithm=="RSA":
-                    pub_key = "n= "+str(models.user_logged.my_keys[id].public_key.public_numbers().n) + \
-                                "e= "+str(models.user_logged.my_keys[id].public_key.public_numbers().e)
-                else:
-                    pub_key = "y= "+str(models.user_logged.my_keys[id].public_key.public_numbers().y)
-
+            priv_key = self.actual_priv(models.user_logged.my_keys[id])
+            pub_key=self.actual_pub(models.user_logged.my_keys[id])
             show= keyid==showkey
 
             self.add_field_to_row(row,keyid,show)
@@ -333,15 +317,38 @@ class PGP_GUI(QMainWindow):
             self.add_field_to_row(row,models.user_logged.my_keys[id].timestamp,show)
             self.model1.appendRow(row)
         self.private_keys.setModel(self.model1)
+
         for id in models.user_logged.other_keys.keys():
             row = []
+
+            pub_key=self.actual_pub(models.user_logged.other_keys[id])
+
             self.add_field_to_row(row,models.user_logged.other_keys[id].keyId)
             self.add_field_to_row(row,models.user_logged.other_keys[id].algorithm)
             self.add_field_to_row(row,models.user_logged.other_keys[id].user_id)
-            self.add_field_to_row(row,models.user_logged.other_keys[id].public_key)
+            self.add_field_to_row(row,pub_key)
             self.add_field_to_row(row,models.user_logged.other_keys[id].timestamp)
             self.model2.appendRow(row)
         self.public_keys.setModel(self.model2)
+
+    def actual_pub(self,key):
+        if key.algorithm == "ELG":
+            pub_key = "p= " + str(key.public_key.p) + ",\n" + \
+                      "g= " + str(key.public_key.g) + ",\n" + \
+                      "y= " + str(key.public_key.y)
+        elif key.algorithm == "RSA":
+            pub_key = "n= " + str(key.public_key.public_numbers().n) + ",\n" + \
+                      "e= " + str(key.public_key.public_numbers().e)
+        else:
+            pub_key = "y= " + str(key.public_key.public_numbers().y)
+        return pub_key
+    def actual_priv(self,key):
+        priv_key=str(key.private_key)
+        if key.algorithm == "ELG":
+            priv_key = priv_key[92:-25]
+        else:
+            priv_key = priv_key[41:-40]
+        return priv_key
 
     def hide_keys(self):
         self.model1 = QStandardItemModel()
@@ -363,10 +370,10 @@ class PGP_GUI(QMainWindow):
         row.append(item)
 
 def main():
+
     app=QApplication([])
     window = PGP_GUI()
     app.exec_()
 
 if __name__=="__main__":
-
     main()

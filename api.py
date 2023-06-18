@@ -17,11 +17,11 @@ def generate_new_keypair(name, password, email, size, algorithm):
     keyring_enc=None
     keyring_sig=None
     if algorithm=="DSA":
-        keyring_sig = KeyRing(email, name, password, size, algorithm)
-        keyring_enc = KeyRing(email, name, password, size, "ELG")
+        keyring_sig = KeyRing(email,algorithm, "", password, size)
+        keyring_enc = KeyRing(email, "ELG", "", password, size)
     else:
-        keyring_sig=KeyRing(email,name,password,size,algorithm)
-        keyring_enc=KeyRing(email,name,password,size,algorithm)
+        keyring_sig=KeyRing(email,algorithm, "",password,size)
+        keyring_enc=KeyRing(email,algorithm, "",password,size)
 
     models.user_logged.my_keys[keyring_enc.keyId]=keyring_enc
     models.user_logged.my_keys[keyring_sig.keyId]=keyring_sig
@@ -49,51 +49,101 @@ def import_key(filename, path, password, req):
     :return: descriptive message / error
     '''
     alg = ""
-    with open(filename+".pem","wb") as f:
+    full_path="./users/"
+    if path!="": full_path=full_path+path+"/"
+    full_path=full_path+filename+".pem"
+    with open(full_path,"r") as f:
         row = f.readline().split(" ")
         key = f.read()
-        if "PUBLIC" in key:
+        if ("PUBLIC" in key) and ("PRIVATE" not in key):
             if(row[0]==models.user_logged.email):
                 return "You cannot import your own public key!"
-            #dodavanje u public keyring
+            if row[1]=="ELG":
+                key=key.split('- -')
+                key[0]=key[0]+'-'
+                key[1]='-'+key[1]+'-'
+                key[2]='-'+key[2]
+            k=KeyRingPublic(row[0],row[1],key)
+            models.user_logged.other_keys[k.keyId]=k
         else:
             if(row[0]!=models.user_logged.email):
                 return "You cannot import someone else's private key!"
-            #auh treba ovde nove staticke da se dodaju
-
-
+            if row[1]=="ELG":
+                key=key.split('- -')
+                key[0]=key[0]+'-'
+                key[1]='-'+key[1]+'-'
+                key[2]='-'+key[2]+'-'
+                key[3]='-'+key[3]
+            k=KeyRing(row[0],row[1],key)
+            models.user_logged.my_keys[k.keyId]=k
     return ""
 
-def export_key(filename, path, keyid):
+def export_key(filename, path, keyid,req):
     '''
 
     :param filename: file to which key is exported
     :param path: path to file
-    :param password: user password
     :param req: if the password is required (True-private key, False-public key)
     :return: descriptive message / error
     '''
 
-    # add password check
-    print(models.user_logged.my_keys)
     title=models.user_logged.email
     keyid = int(keyid)
     if(models.user_logged.my_keys[keyid].algorithm=='RSA'):
         title+=' RSA '
     elif(models.user_logged.my_keys[keyid].algorithm=='DSA'):
-        title+=' DSA'
+        title+=' DSA '
     else:
-        title+=' ELG'
+        title+=' ELG '
     title+='\n'
-    with open(filename+".pem","wb") as f:
+    full_path='./users/'+models.user_logged.email+'/'
+    if path!="": full_path=full_path+path+"/"
+    full_path=full_path+filename+".pem"
+    with open(full_path,"wb") as f:
         f.write(title.encode())
         if (req == True):
-            f.write(models.user_logged.my_keys[keyid].private_key)
+            to_write=models.user_logged.my_keys[keyid].private_key
+            if models.user_logged.my_keys[keyid].algorithm=="ELG":
+                to_write=to_write+' '+PEM.encode(
+                    data= bytes(str(models.user_logged.my_keys[keyid].public_key.p), 'ascii'),
+                    marker="PUBLIC KEY P"
+                    # passphrase=models.user_logged.password
+                )
+                to_write=to_write+' '+PEM.encode(
+                    data= bytes(str(models.user_logged.my_keys[keyid].public_key.g), 'ascii'),
+                    marker="PUBLIC KEY G"
+                    # passphrase=models.user_logged.password
+                )
+                to_write = to_write+' '+PEM.encode(
+                    data=bytes(str(models.user_logged.my_keys[keyid].public_key.y), 'ascii'),
+                    marker="PUBLIC KEY Y"
+                    # passphrase=models.user_logged.password
+                )
+                to_write=bytes(to_write,'ascii')
+            f.write(to_write)
         else:
-            f.write(models.user_logged.my_keys[keyid].public_key.public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo
-    ))
+            if  models.user_logged.my_keys[keyid].algorithm=="ELG":
+                to_write = PEM.encode(
+                    data=bytes(str(models.user_logged.my_keys[keyid].public_key.p), 'ascii'),
+                    marker="PUBLIC KEY P"
+                    # passphrase=models.user_logged.password
+                )
+                to_write = to_write + ' ' + PEM.encode(
+                    data=bytes(str(models.user_logged.my_keys[keyid].public_key.g), 'ascii'),
+                    marker="PUBLIC KEY G"
+                    # passphrase=models.user_logged.password
+                )
+                to_write = to_write + ' ' + PEM.encode(
+                    data=bytes(str(models.user_logged.my_keys[keyid].public_key.y), 'ascii'),
+                    marker="PUBLIC KEY Y"
+                    # passphrase=models.user_logged.password
+                )
+                f.write(bytes(to_write,'ascii'))
+            else:
+                f.write(models.user_logged.my_keys[keyid].public_key.public_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PublicFormat.SubjectPublicKeyInfo
+                ))
     return ""
 
 def send_message(filename, path, enc, sign, compress, radix, message):
@@ -118,6 +168,13 @@ def send_message(filename, path, enc, sign, compress, radix, message):
     :param message: message to be seng
     :return: descriptive message / error
     '''
+
+    hash_message=sha1(message)
+    whole_message=''
+    if (sign):
+        pass
+
+
     return ""
 
 def receive_message(filename_from,path_from,filename_to,path_to,errors):
