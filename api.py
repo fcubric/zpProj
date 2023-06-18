@@ -48,6 +48,20 @@ def import_key(filename, path, password, req):
     :param req: if the password is required (True-private key, False-public key)
     :return: descriptive message / error
     '''
+    alg = ""
+    with open(filename+".pem","wb") as f:
+        row = f.readline().split(" ")
+        key = f.read()
+        if "PUBLIC" in key:
+            if(row[0]==models.user_logged.email):
+                return "You cannot import your own public key!"
+            #dodavanje u public keyring
+        else:
+            if(row[0]!=models.user_logged.email):
+                return "You cannot import someone else's private key!"
+            #auh treba ovde nove staticke da se dodaju
+
+
     return ""
 
 def export_key(filename, path, keyid):
@@ -59,6 +73,27 @@ def export_key(filename, path, keyid):
     :param req: if the password is required (True-private key, False-public key)
     :return: descriptive message / error
     '''
+
+    # add password check
+    print(models.user_logged.my_keys)
+    title=models.user_logged.email
+    keyid = int(keyid)
+    if(models.user_logged.my_keys[keyid].algorithm=='RSA'):
+        title+=' RSA '
+    elif(models.user_logged.my_keys[keyid].algorithm=='DSA'):
+        title+=' DSA'
+    else:
+        title+=' ELG'
+    title+='\n'
+    with open(filename+".pem","wb") as f:
+        f.write(title.encode())
+        if (req == True):
+            f.write(models.user_logged.my_keys[keyid].private_key)
+        else:
+            f.write(models.user_logged.my_keys[keyid].public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    ))
     return ""
 
 def send_message(filename, path, enc, sign, compress, radix, message):
