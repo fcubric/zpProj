@@ -133,8 +133,8 @@ class PGP_GUI(QMainWindow):
         if filename=='' or path=='' or message=='':
             self.send_err.setText("You must enter file name, path and message")
             return
-        enc={}
-        sign={}
+        enc=None
+        sign=None
         compress=self.check_compress.isChecked()
         radix=self.check_radix.isChecked()
         if self.check_enc.isChecked():
@@ -145,7 +145,7 @@ class PGP_GUI(QMainWindow):
                 return
             enc={
                 "alg":alg,
-                "key":key
+                "key":models.user_logged.my_keys[int(key)]
             }
         if self.check_sign.isChecked():
             alg=str(self.send_sign_radio.checkedButton().text())
@@ -155,10 +155,14 @@ class PGP_GUI(QMainWindow):
                 return
             sign={
                 "alg":alg,
-                "key":key
+                "key":models.user_logged.my_keys[int(key)]
             }
-        msg=send_message(filename,path,enc,sign,compress,radix,message)
-        self.send_err.setText(msg)
+        try:
+            msg=send_message(filename,path,enc,sign,compress,radix,message)
+            self.send_err.setText(msg)
+        except Exception as e:
+            print(e)
+
 
     def receive_wrapper(self):
         if models.user_logged == None:

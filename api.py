@@ -1,4 +1,13 @@
 # API for zp proj
+import base64
+import math
+import zlib
+
+from Crypto.Cipher import DES3
+from Crypto.Random import get_random_bytes
+from cryptography.hazmat.primitives.ciphers import algorithms, Cipher, modes
+from cryptography.hazmat.primitives.padding import PKCS7
+
 import models
 from models import *
 
@@ -169,13 +178,71 @@ def send_message(filename, path, enc, sign, compress, radix, message):
     :return: descriptive message / error
     '''
 
-    hash_message=sha1(message)
-    whole_message=''
-    if (sign):
-        pass
+    hash_message=sha1((message+str(datetime.now())+str(filename)).encode()).digest()
+    whole_message=b''
+    if sign!=None:
+        priv_key = serialization.load_pem_private_key(bytes(str(sign['key'].private_key, 'ascii'),'ascii'), password=models.user_logged.password)
+        hash_message = priv_key.sign(
+            bytes(message,'ascii'),
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA1()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA1()
+        )
+        hash_message+=bytes(sign['alg']+"---",'ascii')
+        hash_message+=bytes(str(sign['key'].keyId)+"---",'ascii')
+        hash_message+=bytes(str(datetime.now()),'ascii')
+    whole_message+=bytes(message+'---','ascii')+hash_message
 
+    if compress:
+        whole_message=zlib.compress(whole_message)
+        whole_message+=b"---ZIP"
 
-    return ""
+    if enc!=None:
+        key_session=""
+        if enc['alg']=="AES":
+            key_session=os.urandom(32)
+            iv = os.urandom(16)
+            cipher = Cipher(algorithms.AES(key_session), modes.CBC(iv))
+            encryptor = cipher.encryptor()
+            padder = PKCS7(algorithms.AES.block_size).padder()
+            whole_message = padder.update(whole_message) + padder.finalize()
+            whole_message = encryptor.update(whole_message) + encryptor.finalize()
+            # decryptor = cipher.decryptor()
+            # decryptor.update(whole_message) + decryptor.finalize()
+        else:
+            while True:
+                try:
+                    key_session = DES3.adjust_key_parity(get_random_bytes(24))
+                    break
+                except ValueError:
+                    pass
+
+            cipher = DES3.new(key_session, DES3.MODE_ECB)
+            whole_message = cipher.iv + cipher.encrypt(whole_message)
+        enc_ks=""
+        if enc['key'].algorithm=="RSA":
+            enc_ks =  enc['key'].public_key.encrypt(
+                key_session,
+                padding.OAEP(
+                    mgf=padding.MGF1(algorithm=hashes.SHA1()),
+                    algorithm=hashes.SHA1(),
+                    label=None
+                )
+            )
+        else: #el gamal neki tamo
+            pass
+        whole_message+=bytes('---'+enc['key'].algorithm+"---"+str(enc_ks)+'---'+str(enc['key'].keyId),'ascii')
+
+    if radix:
+        whole_message=base64.b64encode(whole_message)
+        whole_message+=b'---RADIX'
+
+    with open('./users/'+path+"/"+filename+'.txt',"wb") as f:
+        f.write(whole_message)
+
+    return "Sent"
 
 def receive_message(filename_from,path_from,filename_to,path_to,errors):
     '''
