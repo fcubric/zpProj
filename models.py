@@ -34,12 +34,9 @@ class KeyRing:
             self.keyId = self.public_key.public_numbers().y % 2 ** 64
             self.hash_private_key()
         elif algorithm=="ELG":
-            try:
-                KeyRing.generate_key_pair_elgamal(self,256)
-                self.keyId = self.public_key.y % 2 ** 64
-                self.hash_elgamal()
-            except Exception as e:
-                print(e)
+            KeyRing.generate_key_pair_elgamal(self,key_size)
+            self.keyId = int(self.public_key.y % 2 ** 64)
+            self.hash_elgamal()
 
         print(self.keyId)
 
@@ -100,15 +97,12 @@ class KeyRing:
         #private_key_bytes2 = decryptor.update(self.private_key) + decryptor.finalize()
         #print("\nPRIVATNI KLJUC BYTES\n", private_key_bytes)
     def hash_elgamal(self):
-        pass
-        # print(IntegerCustom.from_bytes(self.private_key.x))
-        # return
-        # private_key_bytes = PEM.encode(
-        #     data=str(self.private_key.x.decode()),
-        #     marker="PRIVATE KEY",
-        #     passphrase=self.password
-        # )
-        # self.private_key = private_key_bytes
+        private_key_bytes = PEM.encode(
+            data= bytes(str(self.private_key.x), 'ascii'),
+            marker="PRIVATE KEY",
+            passphrase=self.password
+        )
+        self.private_key = private_key_bytes
 
 class User:
     def __init__(self, name, email, password):

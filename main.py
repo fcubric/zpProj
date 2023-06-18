@@ -301,11 +301,24 @@ class PGP_GUI(QMainWindow):
 
             keyid=models.user_logged.my_keys[id].keyId
             priv_key = str(models.user_logged.my_keys[id].private_key)
-            priv_key = priv_key[41:-40]
-            priv_key.replace('\\n', '')
+            pub_key=0
+
+            if models.user_logged.my_keys[id].algorithm=="ELG":
+                priv_key = priv_key[92:-25]
+                pub_key="p= "+str(models.user_logged.my_keys[id].public_key.p)+", "+ \
+                        "g= "+str(models.user_logged.my_keys[id].public_key.g) + ", " + \
+                        "y= "+str(models.user_logged.my_keys[id].public_key.y) + ", "
+            else:
+                priv_key = priv_key[41:-40]
+                priv_key.replace('\\n', '')
+                if models.user_logged.my_keys[id].algorithm=="RSA":
+                    pub_key = "n= "+str(models.user_logged.my_keys[id].public_key.public_numbers().n) + \
+                                "e= "+str(models.user_logged.my_keys[id].public_key.public_numbers().e)
+                else:
+                    pub_key = "y= "+str(models.user_logged.my_keys[id].public_key.public_numbers().y)
+
             show= keyid==showkey
 
-            pub_key=models.user_logged.my_keys[id].public_key.public_numbers().n
             self.add_field_to_row(row,keyid,show)
             self.add_field_to_row(row,models.user_logged.my_keys[id].user_id,show)
             self.add_field_to_row(row,pub_key,show)
