@@ -27,7 +27,7 @@
      </rect>
     </property>
     <property name="currentIndex">
-     <number>3</number>
+     <number>0</number>
     </property>
     <widget class="QWidget" name="tab_7">
      <attribute name="title">
@@ -1371,7 +1371,7 @@ background-color: rgb(0, 255, 93)</string>
       <property name="geometry">
        <rect>
         <x>220</x>
-        <y>200</y>
+        <y>240</y>
         <width>191</width>
         <height>28</height>
        </rect>
@@ -1388,7 +1388,7 @@ background-color: rgb(0, 255, 93)</string>
       <property name="geometry">
        <rect>
         <x>220</x>
-        <y>240</y>
+        <y>280</y>
         <width>191</width>
         <height>28</height>
        </rect>
@@ -1447,7 +1447,7 @@ background-color: rgb(0, 255, 93)</string>
       <property name="geometry">
        <rect>
         <x>220</x>
-        <y>120</y>
+        <y>160</y>
         <width>191</width>
         <height>22</height>
        </rect>
@@ -1463,7 +1463,7 @@ background-color: rgb(0, 255, 93)</string>
       <property name="geometry">
        <rect>
         <x>120</x>
-        <y>120</y>
+        <y>160</y>
         <width>71</width>
         <height>16</height>
        </rect>
@@ -1479,7 +1479,7 @@ background-color: rgb(0, 255, 93)</string>
       <property name="geometry">
        <rect>
         <x>200</x>
-        <y>300</y>
+        <y>340</y>
         <width>331</width>
         <height>20</height>
        </rect>
@@ -1495,7 +1495,7 @@ background-color: rgb(0, 255, 93)</string>
       <property name="geometry">
        <rect>
         <x>230</x>
-        <y>160</y>
+        <y>200</y>
         <width>181</width>
         <height>16</height>
        </rect>
@@ -1505,6 +1505,38 @@ background-color: rgb(0, 255, 93)</string>
       </property>
       <property name="text">
        <string>(Required for private export)</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_54">
+      <property name="geometry">
+       <rect>
+        <x>120</x>
+        <y>120</y>
+        <width>71</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">color: rgb(0, 255, 93)</string>
+      </property>
+      <property name="text">
+       <string>Key id:</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="export_id">
+      <property name="geometry">
+       <rect>
+        <x>220</x>
+        <y>120</y>
+        <width>191</width>
+        <height>22</height>
+       </rect>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">color:rgb(255, 183, 0)</string>
+      </property>
+      <property name="echoMode">
+       <enum>QLineEdit::Password</enum>
       </property>
      </widget>
     </widget>
@@ -1526,8 +1558,8 @@ background-color: rgb(0, 255, 93)</string>
  <connections/>
  <buttongroups>
   <buttongroup name="send_enc_radio"/>
-  <buttongroup name="send_sign_radio"/>
   <buttongroup name="gen_key_alg_radio"/>
   <buttongroup name="gen_key_size_radio"/>
+  <buttongroup name="send_sign_radio"/>
  </buttongroups>
 </ui>

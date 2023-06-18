@@ -106,13 +106,14 @@ class PGP_GUI(QMainWindow):
         filename = str(self.export_filename.text())
         path = str(self.export_path.text())
         password = str(self.export_pw.text())
+        keyid=str(self.export_id.text())
         if req and password=='':
             self.export_err.setText("Password is required for private export")
             return
-        if filename=='' or path=='':
-            self.export_err.setText("You have to input file name and path")
+        if filename=='' or path=='' or keyid=='':
+            self.export_err.setText("You have to input file name, path and key id")
             return
-        msg = export_key(filename,path,password,req)
+        msg = export_key(filename,path,password,req,keyid)
         self.export_err.setText(msg)
 
     def send_wrapper(self):

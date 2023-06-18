@@ -1,21 +1,20 @@
 import hashlib
+import random
 
 from datetime import datetime
 
-from cryptography.hazmat.primitives import serialization, hashes
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-import os
-
-from cryptography.hazmat.primitives.asymmetric import padding
+from Crypto.IO import PEM
+from Crypto.Math._IntegerCustom import IntegerCustom
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives.ciphers import algorithms, modes, Cipher
+from cryptography.hazmat.primitives.asymmetric import rsa,dsa
+from Crypto.PublicKey import ElGamal
 from hashlib import shake_128, sha1
 
 user_logged=None
 
 class KeyRing:
+    q=0
+    a=0
     def __init__(self,email,name, password,key_size,algorithm):
 
         self.user_id=email
@@ -28,16 +27,20 @@ class KeyRing:
 
         if algorithm=="RSA":
             KeyRing.generate_key_pair_rsa(self,key_size)
+            self.keyId = self.public_key.public_numbers().n % 2 ** 64
+            self.hash_private_key()
         elif algorithm=="DSA":
             KeyRing.generate_key_pair_dsa(self,key_size)
-        elif algorithm=="ELG":
-            KeyRing.generate_key_pair_elgamal(self,key_size)
-
-        self.keyId=self.public_key.public_numbers().n % 2**64
-        try:
+            self.keyId = self.public_key.public_numbers().y % 2 ** 64
             self.hash_private_key()
-        except Exception as e:
-            print(e)
+        elif algorithm=="ELG":
+            try:
+                KeyRing.generate_key_pair_elgamal(self,256)
+                self.keyId = self.public_key.y % 2 ** 64
+                self.hash_elgamal()
+            except Exception as e:
+                print(e)
+
         print(self.keyId)
 
 
@@ -52,18 +55,15 @@ class KeyRing:
 
     @staticmethod
     def generate_key_pair_elgamal(keyring, size):
-        #ana napravi nesto
-        pass
+        keyring.private_key=ElGamal.generate(size,None)
+        keyring.public_key = keyring.private_key.publickey()
 
     @staticmethod
     def generate_key_pair_dsa(keyring, size):
-        #call ugradjeni dsa
-        pass
+        keyring.private_key = dsa.generate_private_key(size)
+        keyring.public_key = keyring.private_key.public_key()
 
     def hash_private_key(self):
-
-
-
         # ciphertext = self.public_key.encrypt(
         #     b"test poruka",
         #     padding.OAEP(
@@ -72,16 +72,12 @@ class KeyRing:
         #         label=None
         #     )
         # )
-
         private_key_bytes = self.private_key.private_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PrivateFormat.PKCS8,
             encryption_algorithm=serialization.BestAvailableEncryption(self.password)
         )
-
         self.private_key = private_key_bytes
-
-
         #print("\nPRIVATNI KLJUC BYTES\n", private_key_bytes)
 
         # private = serialization.load_pem_private_key(self.private_key,password=self.password)
@@ -103,7 +99,16 @@ class KeyRing:
         #decryptor = cipher.decryptor()
         #private_key_bytes2 = decryptor.update(self.private_key) + decryptor.finalize()
         #print("\nPRIVATNI KLJUC BYTES\n", private_key_bytes)
-
+    def hash_elgamal(self):
+        pass
+        # print(IntegerCustom.from_bytes(self.private_key.x))
+        # return
+        # private_key_bytes = PEM.encode(
+        #     data=str(self.private_key.x.decode()),
+        #     marker="PRIVATE KEY",
+        #     passphrase=self.password
+        # )
+        # self.private_key = private_key_bytes
 
 class User:
     def __init__(self, name, email, password):
