@@ -50,7 +50,7 @@ def import_key(filename, path, password, req):
     '''
     return ""
 
-def export_key(filename, path, password, req, keyid):
+def export_key(filename, path, keyid):
     '''
 
     :param filename: file to which key is exported

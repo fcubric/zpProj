@@ -49,7 +49,6 @@ class KeyRing:
         )
         keyring.public_key = keyring.private_key.public_key()
 
-
     @staticmethod
     def generate_key_pair_elgamal(keyring, size):
         keyring.private_key=ElGamal.generate(size,None)

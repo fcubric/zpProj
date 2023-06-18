@@ -30,14 +30,14 @@ class PGP_GUI(QMainWindow):
         self.dec_button.clicked.connect(self.receive_wrapper)
 
         self.model1 = QStandardItemModel()
-        self.model1.setColumnCount(5)
-        headerNames1 = ["Key id","User","Public key","Private key (enc)","Timestamp"]
+        self.model1.setColumnCount(6)
+        headerNames1 = ["Key id","Algorithm","User","Public key","Private key (enc)","Timestamp"]
         self.model1.setHorizontalHeaderLabels(headerNames1)
         self.public_keys.setModel(self.model1)
 
         self.model2 = QStandardItemModel()
-        self.model1.setColumnCount(4)
-        headerNames2 = ["Key id","User","Public key","Timestamp"]
+        self.model1.setColumnCount(5)
+        headerNames2 = ["Key id","Algorithm","User","Public key","Timestamp"]
         self.model2.setHorizontalHeaderLabels(headerNames2)
         self.public_keys.setModel(self.model2)
 
@@ -113,8 +113,14 @@ class PGP_GUI(QMainWindow):
         if filename=='' or path=='' or keyid=='':
             self.export_err.setText("You have to input file name, path and key id")
             return
-        msg = export_key(filename,path,password,req,keyid)
-        self.export_err.setText(msg)
+        try:
+            if (req and self.check_pw(password,int(keyid))) or not req:
+                msg = export_key(filename,path,keyid)
+                self.export_err.setText(msg)
+            elif req:
+                self.export_err.setText("Wrong password")
+        except Exception as e:
+            self.export_err.setText("The key id doesnt exist")
 
     def send_wrapper(self):
 
@@ -320,6 +326,7 @@ class PGP_GUI(QMainWindow):
             show= keyid==showkey
 
             self.add_field_to_row(row,keyid,show)
+            self.add_field_to_row(row,models.user_logged.my_keys[id].algorithm,show)
             self.add_field_to_row(row,models.user_logged.my_keys[id].user_id,show)
             self.add_field_to_row(row,pub_key,show)
             self.add_field_to_row(row,priv_key,show)
@@ -329,6 +336,7 @@ class PGP_GUI(QMainWindow):
         for id in models.user_logged.other_keys.keys():
             row = []
             self.add_field_to_row(row,models.user_logged.other_keys[id].keyId)
+            self.add_field_to_row(row,models.user_logged.other_keys[id].algorithm)
             self.add_field_to_row(row,models.user_logged.other_keys[id].user_id)
             self.add_field_to_row(row,models.user_logged.other_keys[id].public_key)
             self.add_field_to_row(row,models.user_logged.other_keys[id].timestamp)
@@ -337,14 +345,14 @@ class PGP_GUI(QMainWindow):
 
     def hide_keys(self):
         self.model1 = QStandardItemModel()
-        self.model1.setColumnCount(5)
-        headerNames1 = ["Key id", "User", "Public key", "Private key (enc)", "Timestamp"]
+        self.model1.setColumnCount(6)
+        headerNames1 = ["Key id","Algorithm", "User", "Public key", "Private key (enc)", "Timestamp"]
         self.model1.setHorizontalHeaderLabels(headerNames1)
         self.public_keys.setModel(self.model1)
 
         self.model2 = QStandardItemModel()
-        self.model1.setColumnCount(4)
-        headerNames2 = ["Key id", "User", "Public key", "Timestamp"]
+        self.model1.setColumnCount(5)
+        headerNames2 = ["Key id", "Algorithm", "User", "Public key", "Timestamp"]
         self.model2.setHorizontalHeaderLabels(headerNames2)
         self.public_keys.setModel(self.model2)
 
