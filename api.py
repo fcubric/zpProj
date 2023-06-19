@@ -178,37 +178,41 @@ def send_message(filename, path, enc, sign, compress, radix, message):
     :return: descriptive message / error
     '''
 
-    hash_message=sha1((message+str(datetime.now())+str(filename)).encode()).digest()
-    whole_message=b''
-    if sign!=None:
-        priv_key = serialization.load_pem_private_key(bytes(str(sign['key'].private_key, 'ascii'),'ascii'), password=models.user_logged.password)
+def send_message(filename, path, enc, sign, compress, radix, message):
+    iv = os.urandom(16)
+    hash_message = sha1((message + str(datetime.now()) + str(filename)).encode()).digest()
+    whole_message = b''
+    if sign != None:
+        priv_key = serialization.load_pem_private_key(bytes(str(sign['key'].private_key, 'ascii'), 'ascii'),
+                                                      password=models.user_logged.password)
         hash_message = priv_key.sign(
-            bytes(message,'ascii'),
+            bytes(message, 'ascii'),
             padding.PSS(
                 mgf=padding.MGF1(hashes.SHA1()),
                 salt_length=padding.PSS.MAX_LENGTH
             ),
             hashes.SHA1()
         )
-        hash_message+=bytes(sign['alg']+"---",'ascii')
-        hash_message+=bytes(str(sign['key'].keyId)+"---",'ascii')
-        hash_message+=bytes(str(datetime.now()),'ascii')
-    whole_message+=bytes(message+'---','ascii')+hash_message
+        hash_message += bytes(sign['alg'] + "---", 'ascii')
+        hash_message += bytes(str(sign['key'].keyId) + "---", 'ascii')
+        hash_message += bytes(str(datetime.now()), 'ascii')
+    whole_message += bytes(message + '---', 'ascii') + hash_message
 
     if compress:
-        whole_message=zlib.compress(whole_message)
-        whole_message+=b"---ZIP"
+        whole_message = zlib.compress(whole_message)
+        whole_message += b"---ZIP"
 
-    if enc!=None:
-        key_session=""
-        if enc['alg']=="AES":
-            key_session=os.urandom(32)
-            iv = os.urandom(16)
+    if enc != None:
+        key_session = b""
+        if enc['alg'] == "AES":
+            key_session = os.urandom(32)
+
             cipher = Cipher(algorithms.AES(key_session), modes.CBC(iv))
             encryptor = cipher.encryptor()
             padder = PKCS7(algorithms.AES.block_size).padder()
             whole_message = padder.update(whole_message) + padder.finalize()
             whole_message = encryptor.update(whole_message) + encryptor.finalize()
+            whole_message +=  b'---' + iv +  b'---AES'
             # decryptor = cipher.decryptor()
             # decryptor.update(whole_message) + decryptor.finalize()
         else:
@@ -220,10 +224,11 @@ def send_message(filename, path, enc, sign, compress, radix, message):
                     pass
 
             cipher = DES3.new(key_session, DES3.MODE_ECB)
-            whole_message = cipher.iv + cipher.encrypt(whole_message)
-        enc_ks=""
-        if enc['key'].algorithm=="RSA":
-            enc_ks =  enc['key'].public_key.encrypt(
+            whole_message = cipher.iv + b'---' + iv.encode() +  b'---' + cipher.encrypt(whole_message)
+            whole_message += b'---3DES'
+        enc_ks = ""
+        if enc['key'].algorithm == "RSA":
+            enc_ks = enc['key'].public_key.encrypt(
                 key_session,
                 padding.OAEP(
                     mgf=padding.MGF1(algorithm=hashes.SHA1()),
@@ -231,18 +236,21 @@ def send_message(filename, path, enc, sign, compress, radix, message):
                     label=None
                 )
             )
-        else: #el gamal neki tamo
+            # print za debug
+            print(len(enc_ks))
+        else:  # el gamal neki tamo
             pass
-        whole_message+=bytes('---'+enc['key'].algorithm+"---"+str(enc_ks)+'---'+str(enc['key'].keyId),'ascii')
+        whole_message += b"---" + enc['key'].algorithm.encode() + b"---" + enc_ks + b"---" + str(enc['key'].keyId).encode()
 
     if radix:
-        whole_message=base64.b64encode(whole_message)
-        whole_message+=b'---RADIX'
+        whole_message = base64.b64encode(whole_message)
+        whole_message += b"---RADIX"
 
-    with open('./users/'+path+"/"+filename+'.txt',"wb") as f:
+    with open('./users/' + path + "/" + filename + '.txt', "wb") as f:
         f.write(whole_message)
 
     return "Sent"
+
 
 def receive_message(filename_from,path_from,filename_to,path_to,errors):
     '''
@@ -256,4 +264,67 @@ def receive_message(filename_from,path_from,filename_to,path_to,errors):
             errors[1] - says whether the verificatoin was successful
     :return: descriptive message / error
     '''
+    message=b""
+    with open('./users/'+path_from+"/"+filename_from+'.txt',"rb") as f:
+        message = f.read()
+        parts = message.split(b"---")
+        if(parts[-1]==b"RADIX"):
+            notmsg = base64.b64decode(parts[0])
+            parts = notmsg.split(b"---")
+        if parts[-3] == b"RSA" or parts[-3]==b"ELG":
+            alg = parts[-3]
+            encrypted_key = parts[-2]
+            key_id = int(parts[-1]) #????????????
+            key_session=None
+            if alg==b"RSA":
+                print(len(encrypted_key))
+                priv_key = serialization.load_pem_private_key(bytes(str(models.user_logged.my_keys[key_id].private_key, 'ascii'),'ascii'), password=models.user_logged.password)
+                key_session = priv_key.decrypt(
+                    encrypted_key,
+                    padding.OAEP(
+                        mgf=padding.MGF1(algorithm=hashes.SHA1()),
+                        algorithm=hashes.SHA1(),
+                        label=None
+                    )
+                )
+            else:
+                pass
+                #panika
+            parts2 = parts[0].split(b"---")
+            print(parts2)
+            if(parts[1]==b'3DES'):
+                cipher = DES3.new(key_session, DES3.MODE_ECB)
+                message = cipher.iv + cipher.decrypt(parts[0])
+            else:
+                print()
+                cipher = Cipher(algorithms.AES(key_session), modes.CBC(parts[1]))
+                decryptor = cipher.decryptor()
+                message = decryptor.update(parts[0]) + decryptor.finalize()
+                print(message)
+            parts3 = message.split(b"---")
+            #DO OVDE RADI, JEBIGA
+            if(parts3[-1]==b'ZIP\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10'):
+                parts3[0]= zlib.decompress(parts3[0])
+                print(parts3[0])
+                sign=1
+                if sign==1:
+                    konacno = models.user_logged.my_keys[key_id].public_key.verify()
+
+
+
+
+
+
+
+
+
+
+
+
+
     return ""
+
+
+
+
+
