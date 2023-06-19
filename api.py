@@ -210,28 +210,23 @@ def send_message(filename, path, enc, sign, compress, radix, message):
         whole_message += b"---ZIP"
 
     if enc != None:
-        key_session = b""
+        key_session = os.urandom(16)
+        cipher=None; padder=None
         if enc['alg'] == "AES":
-            key_session = os.urandom(32)
-
-            cipher = Cipher(algorithms.AES(key_session), modes.CBC(iv))
-            encryptor = cipher.encryptor()
+            cipher = Cipher(algorithms.AES(key_session), modes.ECB())
             padder = PKCS7(algorithms.AES.block_size).padder()
-            whole_message = padder.update(whole_message) + padder.finalize()
-            whole_message = encryptor.update(whole_message) + encryptor.finalize()
-            whole_message +=  b'---' + iv +  b'---AES'
-            # decryptor = cipher.decryptor()
-            # decryptor.update(whole_message) + decryptor.finalize()
         else:
-            while True:
-                try:
-                    key_session = DES3.adjust_key_parity(get_random_bytes(24))
-                    break
-                except ValueError:
-                    pass
+            cipher= Cipher(algorithms.TripleDES(key_session), modes.ECB())
+            padder = PKCS7(algorithms.TripleDES.block_size).padder()
 
-            cipher = DES3.new(key_session, DES3.MODE_CFB)
-            whole_message = cipher.encrypt(whole_message) + b'---' + cipher.iv + b'---3DES'
+        encryptor = cipher.encryptor()
+
+        whole_message = padder.update(whole_message) + padder.finalize()
+        whole_message = encryptor.update(whole_message) + encryptor.finalize()
+        whole_message += b'---' + iv + b'---'
+        if enc['alg']=="AES": whole_message+=b'AES'
+        else: whole_message+=b'DSA'
+
         enc_ks = ""
         if enc['key'].algorithm == "RSA":
             enc_ks = enc['key'].public_key.encrypt(
@@ -294,20 +289,19 @@ def receive_message(filename_from,path_from,filename_to,path_to,errors):
                 pass
                 #panika
 
-            if(parts[2]==b'3DES'):
-                # cipher = DES3.new(key_session, DES3.MODE_ECB)
-                # message = cipher.iv + cipher.decrypt(parts[0])
+            cipher=None; unpadder=None
 
-                cipher = DES3.new(key_session, DES3.MODE_CFB)
-                cipher.iv=parts[1]
-                message = cipher.decrypt(parts[0])
+            if(parts[2]==b'3DES'):
+                cipher = Cipher(algorithms.TripleDES(key_session), modes.ECB())
+                unpadder = PKCS7(algorithms.AES.block_size).unpadder()
             else:
-                cipher = Cipher(algorithms.AES(key_session), modes.CBC(parts[1]))
-                decryptor = cipher.decryptor()
-                message = decryptor.update(parts[0]) + decryptor.finalize()
+                cipher = Cipher(algorithms.AES(key_session), modes.ECB())
+                unpadder = PKCS7(algorithms.TripleDES.block_size).unpadder()
+
+            decryptor = cipher.decryptor()
+            message = decryptor.update(parts[0]) + decryptor.finalize()
             parts = message.split(b"---")
             try:
-                unpadder = PKCS7(algorithms.AES.block_size).unpadder()
                 parts[-1] = unpadder.update(parts[-1]) + unpadder.finalize()
             except Exception:
                 pass
