@@ -36,7 +36,7 @@ class KeyRing:
             self.keyId = self.public_key.public_numbers().y % 2 ** 64
             self.hash_private_key()
         elif algorithm=="ELG":
-            KeyRing.generate_key_pair_elgamal(self,256)
+            KeyRing.generate_key_pair_elgamal(self,key_size)
             self.keyId = int(self.public_key.y % 2 ** 64)
             self.hash_elgamal()
 

@@ -156,6 +156,7 @@ def export_key(filename, path, keyid,req):
                 ))
     return ""
 
+
 def send_message(filename, path, enc, sign, compress, radix, message):
     '''
 
@@ -178,8 +179,6 @@ def send_message(filename, path, enc, sign, compress, radix, message):
     :param message: message to be seng
     :return: descriptive message / error
     '''
-
-def send_message(filename, path, enc, sign, compress, radix, message):
     iv = os.urandom(16)
     hash_message = sha1((message + str(datetime.now()) + str(filename)).encode()).digest()
     whole_message = b''
@@ -225,7 +224,7 @@ def send_message(filename, path, enc, sign, compress, radix, message):
         whole_message = encryptor.update(whole_message) + encryptor.finalize()
         whole_message += b'---' + iv + b'---'
         if enc['alg']=="AES": whole_message+=b'AES'
-        else: whole_message+=b'DSA'
+        else: whole_message+=b'3DES'
 
         enc_ks = ""
         if enc['key'].algorithm == "RSA":
@@ -238,7 +237,14 @@ def send_message(filename, path, enc, sign, compress, radix, message):
                 )
             )
         else:  # el gamal neki tamo
-            pass
+            enc_ks = enc['key'].public_key.encrypt(
+                key_session,
+                padding.OAEP(
+                    mgf=padding.MGF1(algorithm=hashes.SHA1()),
+                    algorithm=hashes.SHA1(),
+                    label=None
+                )
+            )
         whole_message += b"---" + enc['key'].algorithm.encode() + b"---" + enc_ks + b"---" + str(enc['key'].keyId).encode()
 
     if radix:
@@ -270,7 +276,7 @@ def receive_message(filename_from,path_from,filename_to,path_to,errors):
         if(parts[-1]==b"RADIX"):
             notmsg = base64.b64decode(parts[0])
             parts = notmsg.split(b"---")
-        if parts[-3] == b"RSA" or parts[-3]==b"ELG":
+        if len(parts)>=3 and (parts[-3] == b"RSA" or parts[-3]==b"ELG") and parts[-1].isdigit():
             alg = parts[-3]
             encrypted_key = parts[-2]
             key_id = int(parts[-1]) #????????????
@@ -341,7 +347,7 @@ def receive_message(filename_from,path_from,filename_to,path_to,errors):
                 errors[1]='Invalid signature'
                 return 'Message not received'
 
-
+    message=parts[0]
     save_path='./users/'+models.user_logged.email+"/receive/"
     if path_to!="": save_path=save_path+path_to+'/'
     with open(save_path+filename_to + '.txt', "wb") as f:
