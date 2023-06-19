@@ -5,6 +5,7 @@ import zlib
 
 from Crypto.Cipher import DES3
 from Crypto.Random import get_random_bytes
+from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.ciphers import algorithms, Cipher, modes
 from cryptography.hazmat.primitives.padding import PKCS7
 
@@ -105,7 +106,7 @@ def export_key(filename, path, keyid,req):
     else:
         title+=' ELG '
     title+='\n'
-    full_path='./users/'+models.user_logged.email+'/'
+    full_path='./users/'+models.user_logged.email+'/export/'
     if path!="": full_path=full_path+path+"/"
     full_path=full_path+filename+".pem"
     with open(full_path,"wb") as f:
@@ -185,15 +186,21 @@ def send_message(filename, path, enc, sign, compress, radix, message):
     if sign != None:
         priv_key = serialization.load_pem_private_key(bytes(str(sign['key'].private_key, 'ascii'), 'ascii'),
                                                       password=models.user_logged.password)
-        hash_message = priv_key.sign(
-            bytes(message, 'ascii'),
-            padding.PSS(
-                mgf=padding.MGF1(hashes.SHA1()),
-                salt_length=padding.PSS.MAX_LENGTH
-            ),
-            hashes.SHA1()
-        )
-        hash_message += bytes(sign['alg'] + "---", 'ascii')
+        if sign['alg']=="RSA":
+            hash_message = priv_key.sign(
+                bytes(message, 'ascii'),
+                padding.PSS(
+                    mgf=padding.MGF1(hashes.SHA1()),
+                    salt_length=padding.PSS.MAX_LENGTH
+                ),
+                hashes.SHA1()
+            )
+        else:
+            hash_message = priv_key.sign(
+                bytes(message, 'ascii'),
+                hashes.SHA1()
+            )
+        hash_message += bytes("---" + sign['alg'] + "---", 'ascii')
         hash_message += bytes(str(sign['key'].keyId) + "---", 'ascii')
         hash_message += bytes(str(datetime.now()), 'ascii')
     whole_message += bytes(message + '---', 'ascii') + hash_message
@@ -223,9 +230,8 @@ def send_message(filename, path, enc, sign, compress, radix, message):
                 except ValueError:
                     pass
 
-            cipher = DES3.new(key_session, DES3.MODE_ECB)
-            whole_message = cipher.iv + b'---' + iv.encode() +  b'---' + cipher.encrypt(whole_message)
-            whole_message += b'---3DES'
+            cipher = DES3.new(key_session, DES3.MODE_CFB)
+            whole_message = cipher.encrypt(whole_message) + b'---' + cipher.iv + b'---3DES'
         enc_ks = ""
         if enc['key'].algorithm == "RSA":
             enc_ks = enc['key'].public_key.encrypt(
@@ -236,8 +242,6 @@ def send_message(filename, path, enc, sign, compress, radix, message):
                     label=None
                 )
             )
-            # print za debug
-            print(len(enc_ks))
         else:  # el gamal neki tamo
             pass
         whole_message += b"---" + enc['key'].algorithm.encode() + b"---" + enc_ks + b"---" + str(enc['key'].keyId).encode()
@@ -246,7 +250,7 @@ def send_message(filename, path, enc, sign, compress, radix, message):
         whole_message = base64.b64encode(whole_message)
         whole_message += b"---RADIX"
 
-    with open('./users/' + path + "/" + filename + '.txt', "wb") as f:
+    with open('./users/'+models.user_logged.email+'/send/' + path + "/" + filename + '.txt', "wb") as f:
         f.write(whole_message)
 
     return "Sent"
@@ -277,7 +281,6 @@ def receive_message(filename_from,path_from,filename_to,path_to,errors):
             key_id = int(parts[-1]) #????????????
             key_session=None
             if alg==b"RSA":
-                print(len(encrypted_key))
                 priv_key = serialization.load_pem_private_key(bytes(str(models.user_logged.my_keys[key_id].private_key, 'ascii'),'ascii'), password=models.user_logged.password)
                 key_session = priv_key.decrypt(
                     encrypted_key,
@@ -290,39 +293,67 @@ def receive_message(filename_from,path_from,filename_to,path_to,errors):
             else:
                 pass
                 #panika
-            parts2 = parts[0].split(b"---")
-            print(parts2)
-            if(parts[1]==b'3DES'):
-                cipher = DES3.new(key_session, DES3.MODE_ECB)
-                message = cipher.iv + cipher.decrypt(parts[0])
+
+            if(parts[2]==b'3DES'):
+                # cipher = DES3.new(key_session, DES3.MODE_ECB)
+                # message = cipher.iv + cipher.decrypt(parts[0])
+
+                cipher = DES3.new(key_session, DES3.MODE_CFB)
+                cipher.iv=parts[1]
+                message = cipher.decrypt(parts[0])
             else:
-                print()
                 cipher = Cipher(algorithms.AES(key_session), modes.CBC(parts[1]))
                 decryptor = cipher.decryptor()
                 message = decryptor.update(parts[0]) + decryptor.finalize()
-                print(message)
-            parts3 = message.split(b"---")
-            #DO OVDE RADI, JEBIGA
-            if(parts3[-1]==b'ZIP\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10'):
-                parts3[0]= zlib.decompress(parts3[0])
-                print(parts3[0])
-                sign=1
-                if sign==1:
-                    konacno = models.user_logged.my_keys[key_id].public_key.verify()
+            parts = message.split(b"---")
+            try:
+                unpadder = PKCS7(algorithms.AES.block_size).unpadder()
+                parts[-1] = unpadder.update(parts[-1]) + unpadder.finalize()
+            except Exception:
+                pass
+
+        if(parts[-1].startswith(b'ZIP')):
+            temp=b""
+            for i in range(0,len(parts)-1):
+                temp=temp+parts[i]
+                if i!=len(parts)-2: temp+=b'---'
+            parts=temp
+            parts= zlib.decompress(parts)
+            parts=parts.split(b'---')
+        if len(parts)>=3 and (parts[-3]==b'RSA' or parts[-3]==b'DSA'):
+            timestamp=parts[-1]
+            key_id=int(parts[-2])
+            alg=parts[-3]
+            signature=parts[-4]
+            message=parts[0]
+            try:
+                if alg==b'RSA':
+                    models.user_logged.other_keys[key_id].public_key.verify(
+                        signature,
+                        message,
+                        padding.PSS(
+                            mgf=padding.MGF1(hashes.SHA1()),
+                            salt_length=padding.PSS.MAX_LENGTH
+                        ),
+                            hashes.SHA1()
+                        )
+                else:
+                    models.user_logged.other_keys[key_id].public_key.verify(
+                        signature,
+                        message,
+                        hashes.SHA1()
+                    )
+            except InvalidSignature:
+                errors[1]='Invalid signature'
+                return 'Message not received'
 
 
+    save_path='./users/'+models.user_logged.email+"/receive/"
+    if path_to!="": save_path=save_path+path_to+'/'
+    with open(save_path+filename_to + '.txt', "wb") as f:
+        f.write(message)
 
-
-
-
-
-
-
-
-
-
-
-    return ""
+    return "Message received"
 
 
 

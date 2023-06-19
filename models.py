@@ -36,7 +36,7 @@ class KeyRing:
             self.keyId = self.public_key.public_numbers().y % 2 ** 64
             self.hash_private_key()
         elif algorithm=="ELG":
-            KeyRing.generate_key_pair_elgamal(self,key_size)
+            KeyRing.generate_key_pair_elgamal(self,256)
             self.keyId = int(self.public_key.y % 2 ** 64)
             self.hash_elgamal()
 
@@ -98,41 +98,14 @@ class KeyRing:
         keyring.public_key = keyring.private_key.public_key()
 
     def hash_private_key(self):
-        # ciphertext = self.public_key.encrypt(
-        #     b"test poruka",
-        #     padding.OAEP(
-        #         mgf=padding.MGF1(algorithm=hashes.SHA256()),
-        #         algorithm=hashes.SHA256(),
-        #         label=None
-        #     )
-        # )
+
         private_key_bytes = self.private_key.private_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PrivateFormat.PKCS8,
             encryption_algorithm=serialization.BestAvailableEncryption(self.password)
         )
         self.private_key = private_key_bytes
-        #print("\nPRIVATNI KLJUC BYTES\n", private_key_bytes)
 
-        # private = serialization.load_pem_private_key(self.private_key,password=self.password)
-        #
-        # plaintext = private.decrypt(
-        #     ciphertext,
-        #     padding.OAEP(
-        #         mgf=padding.MGF1(algorithm=hashes.SHA256()),
-        #         algorithm=hashes.SHA256(),
-        #         label=None
-        #     )
-        # )
-        #
-        # print(plaintext)
-
-        #self.private_key = encryptor.update(private_key_bytes) + encryptor.finalize()
-
-
-        #decryptor = cipher.decryptor()
-        #private_key_bytes2 = decryptor.update(self.private_key) + decryptor.finalize()
-        #print("\nPRIVATNI KLJUC BYTES\n", private_key_bytes)
     def hash_elgamal(self):
         private_key_bytes = PEM.encode(
             data= bytes(str(self.private_key.x), 'ascii'),
@@ -157,6 +130,12 @@ class Users_Set:
             os.mkdir("./users")
         if not os.path.exists("./users/"+user.email):
             os.mkdir("./users/"+user.email)
+        if not os.path.exists("./users/"+user.email+"/send"):
+            os.mkdir("./users/"+user.email+"/send")
+        if not os.path.exists("./users/"+user.email+"/receive"):
+            os.mkdir("./users/"+user.email+"/receive")
+        if not os.path.exists("./users/"+user.email+"/export"):
+            os.mkdir("./users/"+user.email+"/export")
 
 
     @staticmethod

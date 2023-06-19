@@ -90,11 +90,15 @@ class PGP_GUI(QMainWindow):
         if filename=='':
             self.import_err.setText("You have to input file name")
             return
-        msg = import_key(filename,path,password,req)
-        self.import_err.setText(msg)
+        try:
+            msg = import_key(filename,path,password,req)
+            self.import_err.setText(msg)
 
-        self.hide_keys()
-        self.show_keys()
+            self.hide_keys()
+            self.show_keys()
+        except FileNotFoundError:
+            self.import_err.setText("File not found")
+
 
     def export_key_wrapper(self,req):
 
@@ -130,8 +134,8 @@ class PGP_GUI(QMainWindow):
         filename = str(self.send_filename.text())
         path = str(self.send_path.text())
         message=str(self.message.toPlainText())
-        if filename=='' or path=='' or message=='':
-            self.send_err.setText("You must enter file name, path and message")
+        if filename=='' or message=='':
+            self.send_err.setText("You must enter file name and message")
             return
         enc=None
         sign=None
@@ -143,25 +147,33 @@ class PGP_GUI(QMainWindow):
             if key=='' or alg=='':
                 self.send_err.setText("You must enter all encription parameters")
                 return
-            enc={
-                "alg":alg,
-                "key":models.user_logged.my_keys[int(key)]
-            }
+            try:
+                enc={
+                    "alg":alg,
+                    "key":models.user_logged.other_keys[int(key)]
+                }
+            except Exception as e:
+                self.send_err.setText(str(e))
+                return
         if self.check_sign.isChecked():
             alg=str(self.send_sign_radio.checkedButton().text())
             key = str(self.send_private_key.text())
             if key=='' or alg=='':
                 self.send_err.setText("You must enter all signature parameters")
                 return
-            sign={
-                "alg":alg,
-                "key":models.user_logged.my_keys[int(key)]
-            }
+            try:
+                sign={
+                    "alg":alg,
+                    "key":models.user_logged.my_keys[int(key)]
+                }
+            except Exception as e:
+                self.send_err.setText(str(e))
+                return
         try:
             msg=send_message(filename,path,enc,sign,compress,radix,message)
             self.send_err.setText(msg)
         except Exception as e:
-            print(e)
+            self.send_err.setText(str(e))
 
 
     def receive_wrapper(self):
@@ -173,14 +185,17 @@ class PGP_GUI(QMainWindow):
         path_from = str(self.dec_path1.text())
         filename_to = str(self.dec_file2.text())
         path_to = str(self.dec_path2.text())
-        if path_to=='' or filename_to=='' or path_from=='' or filename_from=='':
-            self.dec_err.setText("You have to input all parameters")
+        if  filename_to=='' or filename_from=='':
+            self.dec_err.setText("You have to input both file names")
             return
         auth=["",""]
-        msg=receive_message(filename_from,path_from,filename_to,path_to,auth)
-        self.dec_err.setText(msg)
-        self.dec_auth.setText(auth[0])
-        self.dec_verify.setText(auth[1])
+        try:
+            msg=receive_message(filename_from,path_from,filename_to,path_to,auth)
+            self.dec_err.setText(msg)
+            self.dec_auth.setText(auth[0])
+            self.dec_verify.setText(auth[1])
+        except Exception as e:
+            self.dec_err.setText(str(e))
 
     def show_ring_wrapper(self):
         if models.user_logged == None:
